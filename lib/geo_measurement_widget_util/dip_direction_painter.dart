@@ -337,6 +337,7 @@ class DipDirectionSelector extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        /*
         if (is_E_W_EdgeCase) ...[
           Text(
             'painter_strike_warning'.tr, // 'Strike is roughly E–W. Select the dip side:',
@@ -348,6 +349,7 @@ class DipDirectionSelector extends StatelessWidget {
           ),
           const SizedBox(height: 14),
         ],
+         */
 
         Row(
           children: [
@@ -362,6 +364,7 @@ class DipDirectionSelector extends StatelessWidget {
             ),
             const SizedBox(width: 12),
 
+            /*
             if (is_E_W_EdgeCase) ...[
               Expanded(
                 child: _DirectionSwapButton(
@@ -376,6 +379,7 @@ class DipDirectionSelector extends StatelessWidget {
               ),
               const SizedBox(width: 12),
             ],
+             */
 
             Expanded(
               child: _DirectionSwapButton(
@@ -435,8 +439,8 @@ DipDirection suggestedDirection(double? bearing, bool forceEastWest, bool isLeft
   final b = (isLeftHanded) ? (bearing - 90) % 360 : (bearing + 90) % 360;
 
   if (!forceEastWest) {
-    if (b < 1 || b > 359) return DipDirection.north;
-    if (b > 179 && b < 181) return DipDirection.south;
+    if (b < 0.5 || b > 359.5) return DipDirection.north;
+    if (b > 179.5 && b < 180.5) return DipDirection.south;
   }
   return (b > 0 && b <= 180) ? DipDirection.east : DipDirection.west;
 }

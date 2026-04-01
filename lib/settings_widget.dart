@@ -157,6 +157,8 @@ class _SettingsScreenTab extends State<SettingsScreen> {
               ),
             ),
 
+            /*
+
             // Clinometer Style
             ListTile(
               title: Text('settings_inclino_style'.tr), // 'Clinometer Style'),
@@ -178,6 +180,8 @@ class _SettingsScreenTab extends State<SettingsScreen> {
                 },
               ),
             ),
+
+            */
 
             const Divider(),
 

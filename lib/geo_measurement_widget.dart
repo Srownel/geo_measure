@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:math';
+// import 'package:vector_math/vector_math_64.dart' hide Colors;
 
 // Sensor libraries
 import 'package:geolocator/geolocator.dart';
@@ -81,9 +82,9 @@ class _MeasureTakerFlowState extends State<MeasureTakerFlow> with SingleTickerPr
       body: TabBarView(
         controller: _tabController,
         children: [
-          BearingTab(),
-          SlopeAngleTab(),
-          DipDirectionTab(),
+          BearingTab(onNavigate: () => _tabController.animateTo(1)),
+          SlopeAngleTab(onNavigate: () => _tabController.animateTo(2)),
+          DipDirectionTab(onNavigate: () => _tabController.animateTo(3)),
           FinalSaveTab(),
         ],
       ),
@@ -103,8 +104,9 @@ class _MeasureTakerFlowState extends State<MeasureTakerFlow> with SingleTickerPr
 
 // Tab 1: Get position and take bearing (phone flat)
 class BearingTab extends StatefulWidget {
+  final VoidCallback onNavigate;
 
-  const BearingTab({super.key});
+  const BearingTab({super.key, required this.onNavigate});
 
   @override
   State<BearingTab> createState() => _BearingTabState();
@@ -207,14 +209,17 @@ class _BearingTabState extends State<BearingTab> {
                     const SizedBox(height: 30),
                     ValueSaveButton(
                       value: (resValue == null) ? '--' : '${_limitTo180Degrees(_radiansToDegrees(resValue!)).toStringAsFixed(0)}°',
-                      onSave: () { _saveMeasure(
-                        context,
-                        _degreesToRadians(
-                          (settings.bearingType == BearingType.MAGNETIC)
-                            ? compassData.magneticHeading
-                            : compassData.trueHeading
-                        )
-                      );},
+                      onSave: () {
+                        _saveMeasure(
+                          context,
+                          _degreesToRadians(
+                            (settings.bearingType == BearingType.MAGNETIC)
+                              ? compassData.magneticHeading
+                              : compassData.trueHeading
+                          )
+                        );
+                        widget.onNavigate();
+                      },
                     ),
 
                     const SizedBox(height: 30),
@@ -248,6 +253,7 @@ class _BearingTabState extends State<BearingTab> {
   void _saveMeasure(BuildContext context, double value) {
     final provider = Provider.of<MeasurementProvider>(context, listen: false);
     provider.updateBearing(value);
+    provider.updateEastWestOrientation(DipDirection.blank);
 
     resValue = value;
   }
@@ -262,7 +268,7 @@ class _BearingTabState extends State<BearingTab> {
 
   double _limitTo180Degrees(double degrees) {
     if (degrees > 180) {
-      return 360 - degrees;
+      return degrees - 180;
     }
     return degrees;
   }
@@ -271,8 +277,9 @@ class _BearingTabState extends State<BearingTab> {
 
 // Tab 2: Measure the angle of the slope, phone straight.
 class SlopeAngleTab extends StatefulWidget {
+  final VoidCallback onNavigate;
 
-  const SlopeAngleTab({super.key});
+  const SlopeAngleTab({super.key, required this.onNavigate});
 
   @override
   State<SlopeAngleTab> createState() => _SlopeAngleTabState();
@@ -280,7 +287,14 @@ class SlopeAngleTab extends StatefulWidget {
 
 class _SlopeAngleTabState extends State<SlopeAngleTab> {
   late StreamSubscription<AbsoluteOrientationEvent> _orientationSub;
+
+
+  //** Ongoing test **//
   // late StreamSubscription<AccelerometerEvent> _accelerometerSub;
+  // Vector3? _gravity;
+  // double pitch2 = 0.0;
+  //** End test **//
+
 
   double? resValue; // The final value to save, irrespective of measurement mode.
 
@@ -296,6 +310,12 @@ class _SlopeAngleTabState extends State<SlopeAngleTab> {
       setState(() {
         pitch = event.pitch;
         roll = event.roll;
+
+        // correctedPitch = atan( tan(pitch) / cos(event.roll) ); // A slightly better pitch for values neighbouring 90 degrees. Ignores slight tilt offset from the vertical plane.
+        // if (pitch > 1.396) { // 80 degrees in radians
+        //   pitch = -correctedPitch;
+        // }
+
         tilt = acos(cos(pitch) * cos(roll));
       });
     });
@@ -310,6 +330,28 @@ class _SlopeAngleTabState extends State<SlopeAngleTab> {
     //  });
     // });
 
+    // _accelerometerSub = motionSensors.accelerometer.listen((event) {
+    //   setState(() {
+    //     final g = Vector3(event.x, event.y, event.z);
+
+    //     // Normalize → keep only direction
+    //     g.normalize();
+
+    //     _gravity = g;
+    //     if (_gravity != null) {
+    //       final eDevice = Vector3(1, 0, 0); // right edge
+
+    //       // Dot product = sin(theta)
+    //       final dot = _gravity!.dot(eDevice).clamp(-1.0, 1.0);
+
+    //       final slopeRad = asin(dot);
+
+    //       setState(() {
+    //         pitch2 = slopeRad.abs(); // usually you want magnitude
+    //       });
+    //     }
+    //   });
+    // });
 
     // The roll, computed from the accelerometer, more reliable at pitch = pi/2.
     //
@@ -361,6 +403,9 @@ class _SlopeAngleTabState extends State<SlopeAngleTab> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+
+                /*
+
                 //*** AVIATOR STYLE DISPLAY FOR FLAT PHONE USAGE ***//
                 if (settings.clinometerStyle == ClinometerStyle.FLAT) ...[
                   Text(
@@ -400,44 +445,50 @@ class _SlopeAngleTabState extends State<SlopeAngleTab> {
                   SizedBox(height: 30),
                 ],
 
-                //*** AVIATOR STYLE DISPLAY FOR RIDGE PHONE USAGE ***//
+                //*** CLINOMETER STYLE DISPLAY FOR RIDGE PHONE USAGE ***/
                 if (settings.clinometerStyle == ClinometerStyle.RIDGE) ...[
-                  Text(
-                    'measure_slope_angle'.tr, // 'Slope angle',
-                    style: TextStyle(
-                        fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'measure_hold_ridge'.tr, // '(press phone\'s ridge against slope)',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 20),
-                  Container(
-                    width: 320,
-                    height: 320,
-                    child: CustomPaint(
-                      painter: ClinometerPainter(
-                        (roll > 0) ? (pi/2) - pitch : (pi/2) + pitch,
-                        isDark: isDark,
-                      ),
+                */
+
+
+                //*** CLINOMETER STYLE DISPLAY FOR RIDGE PHONE USAGE ***/
+                Text(
+                  'measure_slope_angle'.tr, // 'Slope angle',
+                  style: TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'measure_hold_ridge'.tr, // '(press phone\'s ridge against slope)',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 20),
+                Container(
+                  width: 320,
+                  height: 320,
+                  child: CustomPaint(
+                    painter: ClinometerPainter(
+                      (roll > 0) ? (pi/2) - pitch : (pi/2) + pitch,
+                      isDark: isDark,
                     ),
                   ),
-                  SizedBox(height: 30),
-                  Text(
-                    '${_radiansToDegrees(pitch).toStringAsFixed(0)}°',
-                    style: TextStyle(
-                        fontSize: 48, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 30),
-                  ValueSaveButton(
-                    value: (resValue == null) ? '--' : '${_radiansToDegrees(resValue!).toStringAsFixed(0)}°',
-                    onSave: () { _saveMeasure(context, pitch); },
-                  ),
-                  SizedBox(height: 30),
-                ],
+                ),
+                SizedBox(height: 30),
+                Text(
+                  '${_radiansToDegrees(pitch).toStringAsFixed(0)}°',
+                  style: TextStyle(
+                      fontSize: 48, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 30),
+                ValueSaveButton(
+                  value: (resValue == null) ? '--' : '${_radiansToDegrees(resValue!).toStringAsFixed(0)}°',
+                  onSave: () {
+                    _saveMeasure(context, pitch);
+                    widget.onNavigate();
+                  },
+                ),
+                SizedBox(height: 30),
               ],
             ),
           ),
@@ -462,8 +513,9 @@ class _SlopeAngleTabState extends State<SlopeAngleTab> {
 
 // Tab 3: Input slope orientation
 class DipDirectionTab extends StatefulWidget {
+  final VoidCallback onNavigate;
 
-  const DipDirectionTab({super.key});
+  const DipDirectionTab({super.key, required this.onNavigate});
 
   @override
   State<DipDirectionTab> createState() => _DipDirectionTabState();
@@ -503,6 +555,7 @@ class _DipDirectionTabState extends State<DipDirectionTab> {
     );
 
     if (_selectedDirection == DipDirection.blank) {_selectedDirection = suggestedDir;}
+
     _is_E_W_EdgeCase = (suggestedDir == DipDirection.north) || (suggestedDir == DipDirection.south);
   }
 
@@ -655,11 +708,12 @@ class _DipDirectionTabState extends State<DipDirectionTab> {
                     ValueSaveButton(
                       value: dipDirectionLabel(
                           measurementProvider.currentMeasurement.dipDirection),
-                      onSave: measurementProvider.currentMeasurement.bearing !=
-                          null
+                      onSave:
+                        measurementProvider.currentMeasurement.bearing != null
                           ? () {
-                        _saveDirection(context, _selectedDirection);
-                      }
+                              _saveDirection(context, _selectedDirection);
+                              widget.onNavigate();
+                            }
                           : null,
                     ),
                     const SizedBox(height: 50),
@@ -679,13 +733,13 @@ class _DipDirectionTabState extends State<DipDirectionTab> {
   String dipDirectionLabel(DipDirection dir) {
     switch (dir) {
       case DipDirection.east:
-        return 'EAST';
+        return 'painter_EAST'.tr;
       case DipDirection.west:
-        return 'WEST';
+        return 'painter_WEST'.tr;
       case DipDirection.north:
-        return 'NORTH';
+        return 'painter_NORTH'.tr;
       case DipDirection.south:
-        return 'SOUTH';
+        return 'painter_SOUTH'.tr;
       case DipDirection.blank:
         return '--';
     }
@@ -827,6 +881,7 @@ class _FinalSaveTabState extends State<FinalSaveTab> {
                   MeasurementSummaryCard(
                     bearing: (measurementProvider.currentMeasurement.bearing != null) ? _limitTo180Degrees(_radiansToDegrees(measurementProvider.currentMeasurement.bearing!)) : null,
                     dipAngle: (measurementProvider.currentMeasurement.pitch != null) ? _radiansToDegrees(measurementProvider.currentMeasurement.pitch!) : null,
+                    dipDirection: measurementProvider.currentMeasurement.dipDirection,
                     latitude: _currentPosition?.latitude,
                     longitude: _currentPosition?.longitude,
                     isDark: isDark,
@@ -954,7 +1009,10 @@ class _FinalSaveTabState extends State<FinalSaveTab> {
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => SessionScreen(sessionId: measurementProvider.currentSessionId!),
+                          builder: (context) => ChangeNotifierProvider(
+                            create: (_) => MeasurementProvider(),
+                            child: MeasureTakerFlow(sessionId: measurementProvider.currentSessionId!),
+                          )
                         ),
                       );
                     },
@@ -1094,7 +1152,7 @@ class _FinalSaveTabState extends State<FinalSaveTab> {
 
   double _limitTo180Degrees(double degrees) {
     if (degrees > 180) {
-      return 360 - degrees;
+      return degrees - 180;
     }
     return degrees;
   }

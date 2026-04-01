@@ -1,6 +1,8 @@
 import 'package:hive/hive.dart';
 import 'geo_measurement_class.dart';
 
+import 'translation_util/translation_service.dart';
+
 part 'session_class.g.dart'; // Generated file
 
 @HiveType(typeId: 1)
@@ -32,5 +34,5 @@ class Session extends HiveObject {
   }) : measurements = measurements ?? [];
 
   // Helper to get default name
-  static String defaultName(int id) => 'Session $id';
+  static String defaultName(int id) => '${'session_session'.tr} $id';
 }

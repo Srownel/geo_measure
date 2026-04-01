@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 
 import 'package:multi_sensor_app/settings_provider.dart';
-
+import 'package:multi_sensor_app/geo_measurement_class.dart';
 import 'package:multi_sensor_app/translation_util/translation_service.dart';
+
 
 /// Compact card showing the measurement's information.
 class MeasurementSummaryCard extends StatelessWidget {
   final double? bearing;
   final double? dipAngle;
+  final DipDirection? dipDirection;
   final double? latitude;
   final double? longitude;
   final bool isDark;
@@ -18,6 +20,7 @@ class MeasurementSummaryCard extends StatelessWidget {
     super.key,
     this.bearing,
     this.dipAngle,
+    this.dipDirection,
     this.latitude,
     this.longitude,
     required this.isDark,
@@ -30,63 +33,108 @@ class MeasurementSummaryCard extends StatelessWidget {
     final labelColor = isDark ? Colors.white38 : Colors.black38;
     final valueColor = isDark ? Colors.white : Colors.black87;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.07),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _SummaryCell(
-              label: 'measureS_BEARING'.tr, // 'BEARING',
-              value: (bearing != null) ? '${bearing!.toStringAsFixed(0)}°' : '--',
-              labelColor: labelColor,
-              valueColor: valueColor,
-            ),
-            _Divider(isDark: isDark),
-            _SummaryCell(
-              label: 'measureS_DIP'.tr, // 'DIP',
-              value: (dipAngle != null) ? '${dipAngle!.toStringAsFixed(0)}°' : '--',
-              labelColor: labelColor,
-              valueColor: valueColor,
-            ),
-            _Divider(isDark: isDark),
-            Expanded(
-              child: _SummaryCell(
-                label: 'measureS_COORD'.tr, // 'COORDINATES',
-                value:
-                (latitude != null && longitude != null)
-                    ? switch (coordDisplayFormat) {
-                  CoordinatesDisplayFormat.DD => formatDecimalDegrees(latitude!, longitude!),
-                  CoordinatesDisplayFormat.SDD => formatSignedDD(latitude!, longitude!),
-                  CoordinatesDisplayFormat.DMM => formatDMM(latitude!, longitude!),
-                  CoordinatesDisplayFormat.DMS => formatDMS(latitude!, longitude!),
-                }
-                    : 'measureS_coord_not_avail'.tr, // 'Coordinates not available',
-                labelColor: labelColor,
-                valueColor: valueColor,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Measurement Card (Bearing & Dip)
+        Container(
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.3 : 0.07),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
               ),
-            ),
-          ],
+            ],
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              // Text section
+              Expanded(
+                flex: 2,
+                child: Text(
+                  'N${(bearing != null) ? bearing!.toStringAsFixed(0) : '--'} - ${(dipAngle != null) ? dipAngle!.toStringAsFixed(0) : '--'}${dipDirectionToString(dipDirection)}',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: valueColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.visible,
+                ),
+              ),
+
+              const SizedBox(width: 16),
+
+              // Visualization section
+              Expanded(
+                flex: 1,
+                child: AspectRatio(
+                  aspectRatio: 1, // Keep it square
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: valueColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.compass_calibration, size: 32),
+                    ),
+                    // TODO: Replace with CustomPaint visualization
+                    // child: CustomPaint(
+                    //   painter: MeasurementVisualizerPainter(
+                    //     bearing: bearing,
+                    //     dipAngle: dipAngle,
+                    //     dipDirection: dipDirection,
+                    //     color: valueColor,
+                    //   ),
+                    // ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
+
+        const SizedBox(height: 12),
+
+        Container(
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.3 : 0.07),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(16),
+          child: _SummaryCell(
+            label: 'measureS_COORD'.tr,
+            value: (latitude != null && longitude != null)
+                ? switch (coordDisplayFormat) {
+              CoordinatesDisplayFormat.DD => formatDecimalDegrees(latitude!, longitude!),
+              CoordinatesDisplayFormat.SDD => formatSignedDD(latitude!, longitude!),
+              CoordinatesDisplayFormat.DMM => formatDMM(latitude!, longitude!),
+              CoordinatesDisplayFormat.DMS => formatDMS(latitude!, longitude!),
+            }
+                : 'measureS_coord_not_avail'.tr,
+            labelColor: labelColor,
+            valueColor: valueColor,
+          ),
+        ),
+      ],
     );
   }
 
   String formatDecimalDegrees(double latitude, double longitude,
       {int fractionDigits = 5}) {
-    final latHemisphere = latitude >= 0 ? 'N' : 'S';
-    final lonHemisphere = longitude >= 0 ? 'E' : 'W';
+    final latHemisphere = latitude >= 0 ? 'measureS_N'.tr : 'measureS_S'.tr;
+    final lonHemisphere = longitude >= 0 ? 'measureS_E'.tr : 'measureS_W'.tr;
 
     final lat = latitude.abs().toStringAsFixed(fractionDigits);
     final lon = longitude.abs().toStringAsFixed(fractionDigits);
@@ -101,8 +149,8 @@ class MeasurementSummaryCard extends StatelessWidget {
 
   String formatDMM(double latitude, double longitude,
       {int fractionDigits = 4}) {
-    final ns = latitude >= 0 ? 'N' : 'S';
-    final ew = longitude >= 0 ? 'E' : 'W';
+    final ns = latitude >= 0 ? 'measureS_N'.tr : 'measureS_S'.tr;
+    final ew = longitude >= 0 ? 'measureS_E'.tr : 'measureS_W'.tr;
 
     final latDeg = latitude.abs().floor();
     final latMin = (latitude.abs() - latDeg) * 60;
@@ -126,10 +174,19 @@ class MeasurementSummaryCard extends StatelessWidget {
       return '$degrees° $minutes\' ${seconds.toStringAsFixed(fractionDigits)}" $hemisphere';
     }
 
-    final lat = convert(latitude, 'N', 'S');
-    final lon = convert(longitude, 'E', 'W');
+    final lat = convert(latitude, 'measureS_N'.tr, 'measureS_S'.tr);
+    final lon = convert(longitude, 'measureS_E'.tr, 'measureS_W'.tr);
 
     return '$lat, $lon';
+  }
+
+  String dipDirectionToString(DipDirection? direction) {
+    if (direction == null) return '-';
+    if (direction == DipDirection.north) return 'measureS_N'.tr;
+    if (direction == DipDirection.south) return 'measureS_S'.tr;
+    if (direction == DipDirection.east) return 'measureS_E'.tr;
+    if (direction == DipDirection.west) return 'measureS_W'.tr;
+    return '-';
   }
 }
 
@@ -160,35 +217,21 @@ class _SummaryCell extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   color: labelColor,
                   letterSpacing: 0.8)),
-          Expanded(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.center,
-              child: Text(
-                value,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: valueColor,
-                ),
-                maxLines: 1,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.center,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: valueColor,
               ),
+              maxLines: 1,
             ),
           ),
         ],
       ),
     );
   }
-}
-
-class _Divider extends StatelessWidget {
-  final bool isDark;
-  const _Divider({required this.isDark});
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 1,
-    height: 36,
-    color: isDark ? Colors.white12 : Colors.black12,
-  );
 }

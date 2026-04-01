@@ -1,5 +1,6 @@
 // Libraries & dependencies
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 // Custom project files
@@ -17,6 +18,10 @@ void main() async {
 
   final settingsProvider = SettingsProvider();
   await settingsProvider.loadSettings();
+
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
 
   runApp(ChangeNotifierProvider.value(
     value: settingsProvider,

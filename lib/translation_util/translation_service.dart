@@ -115,6 +115,10 @@ class TranslationService extends ChangeNotifier {
       'measureS_DIP' : 'DIP',
       'measureS_COORD' : 'COORDINATES',
       'measureS_coord_not_avail' : 'Coordinates not available',
+      'measureS_N' : 'N',
+      'measureS_S' : 'S',
+      'measureS_E' : 'E',
+      'measureS_W' : 'W',
 
       // generic_value_save_button.dart
       'saveBtn_save' : 'Save value',
@@ -191,7 +195,7 @@ class TranslationService extends ChangeNotifier {
       'settings_bearing_type' : 'Nord (boussole)',
       'settings_bearing_type_2' : 'Nord magnétique ou géographique',
       'settings_magnetic' : 'Magnétique',
-      'settings_geographic' : 'Géographique)',
+      'settings_geographic' : 'Géographique',
       'settings_bearing_type_warning' : 'Attention: L\'option "Nord géographique" nécessite la permission utilisateur de géolocalisation.',
       'settings_level_style' : 'Style de l\'indicateur horizontal',
       'settings_level_style_2' : 'Le style de l\'indicateur d\'aide sur la boussole',
@@ -263,6 +267,10 @@ class TranslationService extends ChangeNotifier {
       'measureS_DIP' : 'PENDAGE',
       'measureS_COORD' : 'COORDONNÉES',
       'measureS_coord_not_avail' : 'Coordonnées indisponibles',
+      'measureS_N' : 'N',
+      'measureS_S' : 'S',
+      'measureS_E' : 'E',
+      'measureS_W' : 'W',
 
       // generic_value_save_button.dart
       'saveBtn_save' : 'Enregistrer',
@@ -275,6 +283,9 @@ class TranslationService extends ChangeNotifier {
       'painter_EAST' : 'EST',
       'painter_EAST_WEST' : 'EST/OUEST',
       'painter_NORTH_SOUTH' : 'NORD/SUD',
+
+      // session_class.dart
+      'session_session' : 'Session',
 
       // session_widget.dart
       'session_details' : 'Détails de la session',

@@ -362,7 +362,7 @@ class _MeasurementCardState extends State<MeasurementCard> {
 
   double _limitTo180Degrees(double degrees) {
     if (degrees > 180) {
-      return 360 - degrees;
+      return degrees - 180;
     }
     return degrees;
   }
