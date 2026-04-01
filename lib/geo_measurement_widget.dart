@@ -1141,7 +1141,12 @@ class _FinalSaveTabState extends State<FinalSaveTab> {
   Future<void> _saveMeasurement(BuildContext context) async {
     final provider = Provider.of<MeasurementProvider>(context, listen: false);
 
-    provider.updateGPS(_currentPosition!.latitude, _currentPosition!.longitude);
+    if (_currentPosition == null && _locationStatus) {
+      await _getGeolocation();
+    }
+    if (_currentPosition != null) {
+      provider.updateGPS(_currentPosition!.latitude, _currentPosition!.longitude);
+    }
 
     await provider.saveMeasurement();
   }
