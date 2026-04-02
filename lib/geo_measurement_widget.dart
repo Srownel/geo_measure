@@ -476,7 +476,7 @@ class _SlopeAngleTabState extends State<SlopeAngleTab> {
                 ),
                 SizedBox(height: 30),
                 Text(
-                  '${_radiansToDegrees(pitch).toStringAsFixed(0)}°',
+                  '${_radiansToDegrees(pitch.abs()).toStringAsFixed(0)}°',
                   style: TextStyle(
                       fontSize: 48, fontWeight: FontWeight.bold),
                 ),
@@ -484,7 +484,7 @@ class _SlopeAngleTabState extends State<SlopeAngleTab> {
                 ValueSaveButton(
                   value: (resValue == null) ? '--' : '${_radiansToDegrees(resValue!).toStringAsFixed(0)}°',
                   onSave: () {
-                    _saveMeasure(context, pitch);
+                    _saveMeasure(context, pitch.abs());
                     widget.onNavigate();
                   },
                 ),

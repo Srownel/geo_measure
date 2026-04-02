@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:multi_sensor_app/settings_provider.dart';
 import 'package:multi_sensor_app/geo_measurement_class.dart';
 import 'package:multi_sensor_app/translation_util/translation_service.dart';
+import 'measurement_visualizer_painter.dart';
 
 
 /// Compact card showing the measurement's information.
@@ -35,6 +36,7 @@ class MeasurementSummaryCard extends StatelessWidget {
 
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Measurement Card (Bearing & Dip)
         Container(
@@ -49,17 +51,18 @@ class MeasurementSummaryCard extends StatelessWidget {
               ),
             ],
           ),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
           child: Row(
             children: [
               // Text section
               Expanded(
-                flex: 2,
+                flex: 1,
                 child: Text(
                   'N${(bearing != null) ? bearing!.toStringAsFixed(0) : '--'} - ${(dipAngle != null) ? dipAngle!.toStringAsFixed(0) : '--'}${dipDirectionToString(dipDirection)}',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
+                    letterSpacing: 1,
                     color: valueColor,
                   ),
                   maxLines: 1,
@@ -70,28 +73,19 @@ class MeasurementSummaryCard extends StatelessWidget {
               const SizedBox(width: 16),
 
               // Visualization section
-              Expanded(
-                flex: 1,
+              SizedBox(
+                width: 60,  // or whatever size you want
+                height: 60,
                 child: AspectRatio(
                   aspectRatio: 1, // Keep it square
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: valueColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+                    child: CustomPaint(
+                      painter: MeasurementVisualizerPainter(
+                        bearing: bearing,
+                        dipAngle: dipAngle,
+                        dipDirection: dipDirection,
+                        color: valueColor,
+                      ),
                     ),
-                    child: const Center(
-                      child: Icon(Icons.compass_calibration, size: 32),
-                    ),
-                    // TODO: Replace with CustomPaint visualization
-                    // child: CustomPaint(
-                    //   painter: MeasurementVisualizerPainter(
-                    //     bearing: bearing,
-                    //     dipAngle: dipAngle,
-                    //     dipDirection: dipDirection,
-                    //     color: valueColor,
-                    //   ),
-                    // ),
-                  ),
                 ),
               ),
             ],
@@ -112,7 +106,7 @@ class MeasurementSummaryCard extends StatelessWidget {
               ),
             ],
           ),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: _SummaryCell(
             label: 'measureS_COORD'.tr,
             value: (latitude != null && longitude != null)
@@ -205,33 +199,30 @@ class _SummaryCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          Text(label,
-              style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: labelColor,
-                  letterSpacing: 0.8)),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.center,
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: valueColor,
-              ),
-              maxLines: 1,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        Text(label,
+            style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: labelColor,
+                letterSpacing: 0.8)),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.center,
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: valueColor,
             ),
+            maxLines: 1,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
