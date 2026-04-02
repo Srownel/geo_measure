@@ -45,7 +45,7 @@ class MeasurementVisualizerPainter extends CustomPainter {
 
     if (isNearlyVertical) {
       // Draw bearing line as two segments with gap in center
-      final gapSize = 3.0;
+      final gapSize = 5.0;
       final bearingDir = Offset(math.cos(bearingRadians), math.sin(bearingRadians));
 
       // First segment (from edge to near center)
