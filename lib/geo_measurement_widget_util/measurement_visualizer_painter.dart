@@ -39,6 +39,7 @@ class MeasurementVisualizerPainter extends CustomPainter {
     // Convert bearing to radians (0° = North = up, clockwise)
     // In canvas coordinates: 0° points right, so we need to rotate
     final bearingRadians = (bearing! - 90) * math.pi / 180;
+    final dipRadians = dipAngle! * math.pi / 180;
 
     // Check if dipAngle is nearly vertical (>89.5°)
     final isNearlyVertical = dipAngle! > 89.5;
@@ -67,57 +68,40 @@ class MeasurementVisualizerPainter extends CustomPainter {
       final lineEnd = center + bearingDir * radius;
       canvas.drawLine(lineStart, lineEnd, paint);
 
-      // Calculate dip arrow
+      // Calculate dip
       // Length: max (radius) at dipAngle=0, min (0) at dipAngle=90
-      final arrowLength = (radius - 5) * (1 - (dipAngle! - 15) / 90);
+      final dipLineLength = radius * math.sin(dipRadians + math.pi/2);
 
       // Determine arrow direction based on dipDirection
-      double arrowAngle;
+      double dipLineAngle;
       switch (dipDirection!) {
         case DipDirection.east:
         // Perpendicular to bearing, to the right
-          arrowAngle = bearingRadians + ((bearing! < 90) ? math.pi / 2 : -math.pi / 2);
+          dipLineAngle = bearingRadians + ((bearing! < 90) ? math.pi / 2 : -math.pi / 2);
           break;
         case DipDirection.west:
         // Perpendicular to bearing, to the left
-          arrowAngle = bearingRadians + ((bearing! > 90) ? math.pi / 2 : -math.pi / 2);
+          dipLineAngle = bearingRadians + ((bearing! > 90) ? math.pi / 2 : -math.pi / 2);
           break;
         case DipDirection.north:
         // Straight up
-          arrowAngle = -math.pi / 2;
+          dipLineAngle = -math.pi / 2;
           break;
         case DipDirection.south:
         // Straight down
-          arrowAngle = math.pi / 2;
+          dipLineAngle = math.pi / 2;
           break;
         case DipDirection.blank:
         // Shouldn't ever happen since we return early for null or blank value
-          arrowAngle = -math.pi / 2;
+          dipLineAngle = -math.pi / 2;
           break;
       }
 
-      // Draw dip arrow
-      final arrowDir = Offset(math.cos(arrowAngle), math.sin(arrowAngle));
-      final arrowEnd = center + arrowDir * arrowLength;
+      // Draw dip line
+      final dipLineDir = Offset(math.cos(dipLineAngle), math.sin(dipLineAngle));
+      final dipLineEnd = center + dipLineDir * (dipLineLength + 1);
 
-      // Draw arrow shaft
-      canvas.drawLine(center, arrowEnd, paint..strokeWidth = 2.5);
-
-      // Draw arrowhead
-      final arrowheadLength = 6.0;
-      final arrowheadAngle = math.pi / 6; // 30 degrees
-
-      final arrowLeft = arrowEnd - Offset(
-        math.cos(arrowAngle - arrowheadAngle) * arrowheadLength,
-        math.sin(arrowAngle - arrowheadAngle) * arrowheadLength,
-      );
-      final arrowRight = arrowEnd - Offset(
-        math.cos(arrowAngle + arrowheadAngle) * arrowheadLength,
-        math.sin(arrowAngle + arrowheadAngle) * arrowheadLength,
-      );
-
-      canvas.drawLine(arrowEnd, arrowLeft, paint);
-      canvas.drawLine(arrowEnd, arrowRight, paint);
+      canvas.drawLine(center, dipLineEnd, paint..strokeWidth = 2.5);
     }
   }
 

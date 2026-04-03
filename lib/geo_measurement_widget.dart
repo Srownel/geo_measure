@@ -9,6 +9,7 @@ import 'dart:math';
 import 'package:geolocator/geolocator.dart';
 import 'package:dchs_motion_sensors/dchs_motion_sensors.dart';
 import 'package:lat_compass/lat_compass.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 
 // Project
 import 'geo_measurement_class.dart';
@@ -286,93 +287,55 @@ class SlopeAngleTab extends StatefulWidget {
 }
 
 class _SlopeAngleTabState extends State<SlopeAngleTab> {
-  late StreamSubscription<AbsoluteOrientationEvent> _orientationSub;
 
+  late StreamSubscription _accelSub;
+  late StreamSubscription _userAccelSub;
 
-  //** Ongoing test **//
-  // late StreamSubscription<AccelerometerEvent> _accelerometerSub;
-  // Vector3? _gravity;
-  // double pitch2 = 0.0;
-  //** End test **//
-
+  // Latest sensor values
+  double ax = 0, ay = 0, az = 0;
+  double uax = 0, uay = 0, uaz = 0;
+  // Gravity vector
+  double gx = 0, gy = 0, gz = 0;
+  // Output roll (radians)
+  double rollSP = 0;
 
   double? resValue; // The final value to save, irrespective of measurement mode.
 
-  double pitch = 0.0; // The angle of the slope, when measuring with the phone's ridge against the slope.
-  double roll = 0.0; // The roll of the phone, used to measure tilt.
-  // double stableRoll = 0.0; // The roll, computed from the accelerometer, more reliable at pitch = pi/2.
-  double tilt = 0.0; // The angle of the slope, when measuring with the phone flat against the slope.
 
   @override
   void initState() {
     super.initState();
-    _orientationSub = motionSensors.absoluteOrientation.listen((event) {
+
+    _accelSub = accelerometerEventStream(samplingPeriod: Duration(milliseconds: 8)).listen((event) {
       setState(() {
-        pitch = event.pitch;
-        roll = event.roll;
-
-        // correctedPitch = atan( tan(pitch) / cos(event.roll) ); // A slightly better pitch for values neighbouring 90 degrees. Ignores slight tilt offset from the vertical plane.
-        // if (pitch > 1.396) { // 80 degrees in radians
-        //   pitch = -correctedPitch;
-        // }
-
-        tilt = acos(cos(pitch) * cos(roll));
+        ax = event.x;
+        ay = event.y;
+        az = event.z;
       });
     });
 
-    // Equivalent measures using AccelerometerEvent
-    //
-    // _accelerometerSub = motionSensors.accelerometer.listen((event) {
-    //   setState(() {
-    //     pitch = atan2(event.y, event.z);
-    //     roll = atan2(event.x, event.z);
-    //     tilt = acos(event.z / sqrt(event.x*event.x + event.y*event.y + event.z*event.z));
-    //  });
-    // });
+    _userAccelSub = userAccelerometerEventStream(samplingPeriod: Duration(milliseconds: 8)).listen((event) {
+      setState(() {
+        uax = event.x;
+        uay = event.y;
+        uaz = event.z;
 
-    // _accelerometerSub = motionSensors.accelerometer.listen((event) {
-    //   setState(() {
-    //     final g = Vector3(event.x, event.y, event.z);
+        double smoothing = 0.9;
 
-    //     // Normalize → keep only direction
-    //     g.normalize();
+        gx = smoothing * gx + (1 - smoothing) * (ax - uax);
+        gy = smoothing * gy + (1 - smoothing) * (ay - uay);
+        gz = smoothing * az + (1 - smoothing) * (az - uaz);
 
-    //     _gravity = g;
-    //     if (_gravity != null) {
-    //       final eDevice = Vector3(1, 0, 0); // right edge
+        // Normalize (optional but recommended)
+        final norm = sqrt(gx * gx + gy * gy + gz * gz);
 
-    //       // Dot product = sin(theta)
-    //       final dot = _gravity!.dot(eDevice).clamp(-1.0, 1.0);
+        final nx = gx / norm;
+        final ny = gy / norm;
 
-    //       final slopeRad = asin(dot);
-
-    //       setState(() {
-    //         pitch2 = slopeRad.abs(); // usually you want magnitude
-    //       });
-    //     }
-    //   });
-    // });
-
-    // The roll, computed from the accelerometer, more reliable at pitch = pi/2.
-    //
-    // motionSensors.accelerometerUpdateInterval =
-    //     Duration.microsecondsPerSecond ~/ 60;
-    //
-    // motionSensors.accelerometer.listen((event) {
-    //   double ax = event.x;
-    //   double ay = event.y;
-    //   double az = event.z;
-    //
-    //   final norm = sqrt(ax * ax + ay * ay + az * az);
-    //   ax /= norm;
-    //   ay /= norm;
-    //   az /= norm;
-    //   final newRoll = atan2(az, sqrt(ax*ax + ay*ay));
-    //
-    //   setState(() {
-    //     stableRoll = 0.85 * stableRoll + 0.15 * newRoll; // Smoothing to avoid jittering.
-    //   });
-    // });
+        // Compute roll (portrait-friendly)
+        rollSP = atan2(-nx, ny);
+      });
+    });
 
     MeasurementProvider measurementProvider = Provider.of<MeasurementProvider>(context, listen: false);
     if (measurementProvider.currentMeasurement.pitch != null) {
@@ -383,8 +346,8 @@ class _SlopeAngleTabState extends State<SlopeAngleTab> {
 
   @override
   void dispose() {
-    _orientationSub.cancel();
-    // _accelerometerSub.cancel();
+    _accelSub.cancel();
+    _userAccelSub.cancel();
     super.dispose();
   }
 
@@ -403,53 +366,6 @@ class _SlopeAngleTabState extends State<SlopeAngleTab> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-
-                /*
-
-                //*** AVIATOR STYLE DISPLAY FOR FLAT PHONE USAGE ***//
-                if (settings.clinometerStyle == ClinometerStyle.FLAT) ...[
-                  Text(
-                    'measure_slope_angle'.tr, // 'Slope angle',
-                    style: TextStyle(
-                        fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'measure_hold_flat'.tr, // '(press phone flat against slope)',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 20),
-                  Container(
-                    width: 320,
-                    height: 320,
-                    child: CustomPaint(
-                      painter: PitchPainter (
-                        _radiansToDegrees(tilt),
-                        isDark: isDark,
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 30),
-                  Text(
-                    '${_radiansToDegrees(tilt).toStringAsFixed(0)}°',
-                    style: TextStyle(
-                        fontSize: 48, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 30),
-                  ValueSaveButton(
-                    value: (resValue == null) ? '--' : '${_radiansToDegrees(resValue!).toStringAsFixed(0)}°',
-                    onSave: () { _saveMeasure(context, tilt); },
-                  ),
-                  SizedBox(height: 30),
-                ],
-
-                //*** CLINOMETER STYLE DISPLAY FOR RIDGE PHONE USAGE ***/
-                if (settings.clinometerStyle == ClinometerStyle.RIDGE) ...[
-                */
-
-
                 //*** CLINOMETER STYLE DISPLAY FOR RIDGE PHONE USAGE ***/
                 Text(
                   'measure_slope_angle'.tr, // 'Slope angle',
@@ -469,14 +385,15 @@ class _SlopeAngleTabState extends State<SlopeAngleTab> {
                   height: 320,
                   child: CustomPaint(
                     painter: ClinometerPainter(
-                      (roll > 0) ? (pi/2) - pitch : (pi/2) + pitch,
+                      // (roll > 0) ? (pi/2) - pitch : (pi/2) + pitch,
+                      rollSP,
                       isDark: isDark,
                     ),
                   ),
                 ),
                 SizedBox(height: 30),
                 Text(
-                  '${_radiansToDegrees(pitch.abs()).toStringAsFixed(0)}°',
+                  '${_radiansToDegrees((pi/2 - rollSP.abs()).abs()).toStringAsFixed(0)}°',
                   style: TextStyle(
                       fontSize: 48, fontWeight: FontWeight.bold),
                 ),
@@ -484,7 +401,7 @@ class _SlopeAngleTabState extends State<SlopeAngleTab> {
                 ValueSaveButton(
                   value: (resValue == null) ? '--' : '${_radiansToDegrees(resValue!).toStringAsFixed(0)}°',
                   onSave: () {
-                    _saveMeasure(context, pitch.abs());
+                    _saveMeasure(context, (pi/2 - rollSP.abs()).abs());
                     widget.onNavigate();
                   },
                 ),

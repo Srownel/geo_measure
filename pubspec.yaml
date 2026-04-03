@@ -36,6 +36,7 @@ dependencies:
 
   # Phone sensor -related stuff
   geolocator: ^14.0.2          # GPS location + altitude
+  sensors_plus: ^4.0.2         # Motion sensors
   dchs_motion_sensors: ^2.0.1  # Motion sensors (tilt, roll, yaw)
   lat_compass: 1.1.1           # Compass heading, magnetic and true north.
   permission_handler: ^12.0.1  # For asking location/sensor permissions

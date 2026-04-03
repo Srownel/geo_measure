@@ -6,6 +6,8 @@
     <string>This app can attach your location to a measurement when saving it. It only uses this information locally and does not share it with any other entity.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
     <string>This app can attach your location to a measurement when saving it. It only uses this information locally and does not share it with any other entity.</string>
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
 
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>

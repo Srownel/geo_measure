@@ -1,4 +1,4 @@
-package com.example.multi_sensor_app
+package com.devouard.geolmeasure
 
 import io.flutter.embedding.android.FlutterActivity
 
