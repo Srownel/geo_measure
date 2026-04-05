@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 
+import 'package:multi_sensor_app/settings_provider.dart';
+
 // *** AVIATOR-STYLE PITCH DISPLAY - FOR PHONE FLAT MEASURING MODE *** //
 
 class PitchPainter extends CustomPainter {
@@ -155,10 +157,12 @@ class PitchPainter extends CustomPainter {
 
 class ClinometerPainter extends CustomPainter {
   final double inclination; // Tilt angle in radians
+  final ClinometerStyle clinoStyle;
   final bool isDark;
 
   ClinometerPainter(
       this.inclination,
+      this.clinoStyle,
       {this.isDark = false}
   );
 
@@ -185,6 +189,15 @@ class ClinometerPainter extends CustomPainter {
       ..strokeWidth = 6;
     canvas.drawCircle(center, radius - 10, outerRingPaint);
 
+    if (clinoStyle == ClinometerStyle.MARBLE) {
+      // Draw inner ring
+      final innerRingPaint = Paint()
+        ..color = accentColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 5;
+      canvas.drawCircle(center, radius - 35, innerRingPaint);
+    }
+
     // Draw graduated circle (fixed to screen/phone)
     _drawGraduations(canvas, center, radius - 15, fgColor);
 
@@ -192,7 +205,7 @@ class ClinometerPainter extends CustomPainter {
     _drawHorizontalBar(canvas, center, radius - 15);
 
     // Draw inclination bar
-    _drawInclinationBar(canvas, center, radius - 15, accentColor, fgColor);
+    // _drawInclinationBar(canvas, center, radius - 15, accentColor, fgColor);
 
     // Draw center dot
     final centerDotPaint = Paint()
@@ -238,22 +251,22 @@ class ClinometerPainter extends CustomPainter {
         tickPaint,
       );
 
-      // Draw labels at cardinal points and 45° intervals
-      if (angle % 45 == 0) {
-        final labelRadius = radius - 35;
+      // Draw labels at cardinal points and 30° intervals
+      if (angle % 30 == 0) {
+        final labelRadius = radius - ((clinoStyle == ClinometerStyle.MARBLE) ? 43 : 35);
         final labelX = center.dx + labelRadius * cos(angleRadians - pi / 2);
         final labelY = center.dy + labelRadius * sin(angleRadians - pi / 2);
 
-        // Calculate the angle to display (0° at top, 90° at sides)
+        // Calculate the angle to display (90° at top, 0° at sides)
         int displayAngle;
         if (angle <= 90) {
-          displayAngle = angle;
+          displayAngle = 90 - angle;
         } else if (angle <= 180) {
-          displayAngle = 180 - angle;
+          displayAngle = angle - 90;
         } else if (angle <= 270) {
-          displayAngle = angle - 180;
+          displayAngle = 270 - angle;
         } else {
-          displayAngle = 360 - angle;
+          displayAngle = angle - 270;
         }
 
         textPainter.text = TextSpan(
@@ -314,7 +327,7 @@ class ClinometerPainter extends CustomPainter {
 
     // Draw the horizontal bar
     final barPaint = Paint()
-      ..color = Colors.black.withOpacity(0.7)
+      ..color = Colors.red.withOpacity(0.9)
       ..strokeWidth = 4
       ..strokeCap = StrokeCap.round;
 
@@ -323,6 +336,55 @@ class ClinometerPainter extends CustomPainter {
       Offset(center.dx + radius, center.dy),
       barPaint,
     );
+
+    if (clinoStyle == ClinometerStyle.ARROW) {
+      // Draw the arrow
+      final arrowAngle = pi / 2;
+      final arrowLength = (radius - 35);
+
+      final tipX = center.dx + arrowLength * cos(arrowAngle);
+      final tipY = center.dy + arrowLength * sin(arrowAngle);
+      final tip = Offset(tipX, tipY);
+
+      // Shaft
+      final shaftPaint = Paint()
+        ..color = Colors.red
+        ..strokeWidth = 3.5
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(center, tip, shaftPaint);
+
+      // Arrowhead
+      const headLen = 14.0;
+      const headWidth = 8.0;
+      final perpAngle = arrowAngle + pi / 2;
+
+      final head = Path()
+        ..moveTo(tipX, tipY + 5)
+        ..lineTo(
+          tipX - headLen * cos(arrowAngle) + headWidth * cos(perpAngle),
+          tipY - headLen * sin(arrowAngle) + headWidth * sin(perpAngle),
+        )..lineTo(tipX, tipY - 8)..lineTo(
+          tipX - headLen * cos(arrowAngle) - headWidth * cos(perpAngle),
+          tipY - headLen * sin(arrowAngle) - headWidth * sin(perpAngle),
+        )
+        ..close();
+
+      canvas.drawPath(
+        head,
+        Paint()
+          ..color = Colors.red
+          ..style = PaintingStyle.fill,
+      );
+    } else {
+      // Draw the marble
+      final marbleCenter = Offset(center.dx, center.dy + (radius - 7));
+
+      // Draw center dot
+      final marbleDotPaint = Paint()
+        ..color = Colors.red.withOpacity(0.95)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(marbleCenter, 7, marbleDotPaint);
+    }
 
     canvas.restore();
   }

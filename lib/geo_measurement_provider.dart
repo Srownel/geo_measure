@@ -13,6 +13,9 @@ class MeasurementProvider extends ChangeNotifier {
   // Init a new measurement
   GeologicalMeasurement? _currentMeasurement;
 
+  // A temporary measure of the bearing of the dip, for estimated pre-filling of the DipDirection
+  double? dipDirectionBearing; // in degrees
+
   // Init a new measurement on first access
   GeologicalMeasurement get currentMeasurement {
     if (_currentMeasurement == null) {

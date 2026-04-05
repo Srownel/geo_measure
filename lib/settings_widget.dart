@@ -88,16 +88,6 @@ class _SettingsScreenTab extends State<SettingsScreen> {
               ),
             ),
 
-            // Left-handed mode
-            SwitchListTile(
-              title: Text('settings_left_handed'.tr), // 'Left-Handed Mode'
-              subtitle: Text('settings_left_handed_2'.tr),
-              // 'Defaults the dip direction to be (counter)clockwise to the measured bearing. '
-              // 'You can always change it manually when taking a measurement.'
-              value: settings.isLeftHanded,
-              onChanged: (value) => settings.setLeftHanded(value),
-            ),
-
             const Divider(),
 
             ListTile(
@@ -157,8 +147,6 @@ class _SettingsScreenTab extends State<SettingsScreen> {
               ),
             ),
 
-            /*
-
             // Clinometer Style
             ListTile(
               title: Text('settings_inclino_style'.tr), // 'Clinometer Style'),
@@ -167,12 +155,12 @@ class _SettingsScreenTab extends State<SettingsScreen> {
                 value: settings.clinometerStyle,
                 items: [
                   DropdownMenuItem(
-                    value: ClinometerStyle.RIDGE,
-                    child: Text('settings_ridge'.tr), // 'Ridge'),
+                    value: ClinometerStyle.ARROW,
+                    child: Text('settings_arrow'.tr), // 'Arrow'),
                   ),
                   DropdownMenuItem(
-                    value: ClinometerStyle.FLAT,
-                    child: Text('settings_flat'.tr), // 'Flat'),
+                    value: ClinometerStyle.MARBLE,
+                    child: Text('settings_marble'.tr), // 'Marble'),
                   ),
                 ],
                 onChanged: (value) {
@@ -181,7 +169,6 @@ class _SettingsScreenTab extends State<SettingsScreen> {
               ),
             ),
 
-            */
 
             const Divider(),
 
@@ -338,11 +325,6 @@ class _SettingsScreenTab extends State<SettingsScreen> {
         _geolocAuthorizationRequestCounter = 0;
       }
     }
-
-
-
-
-
 
     _checkLocationStatus();
   }

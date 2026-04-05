@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:math';
-// import 'package:vector_math/vector_math_64.dart' hide Colors;
 
 // Sensor libraries
 import 'package:geolocator/geolocator.dart';
@@ -19,7 +18,6 @@ import 'geo_measurement_widget_util/clinometer_painter.dart';
 import 'geo_measurement_widget_util/dip_direction_painter.dart';
 import 'geo_measurement_widget_util/generic_value_save_button.dart';
 import 'geo_measurement_widget_util/measurement_summary.dart';
-import 'session_widget.dart';
 import 'settings_widget.dart';
 import 'settings_provider.dart';
 
@@ -73,10 +71,22 @@ class _MeasureTakerFlowState extends State<MeasureTakerFlow> with SingleTickerPr
           isScrollable: true,
           tabAlignment: TabAlignment.start,
           tabs: [
-            Tab(text: 'measure_bearing'.tr), // 'Bearing'),
-            Tab(text: 'measure_inclination'.tr), // 'Inclination'),
-            Tab(text: 'measure_direction'.tr), // Direction'),
-            Tab(text: 'measure_final_save'.tr), // 'Final save'),
+            Tab(child: Text(
+              'measure_bearing'.tr, // 'Bearing'),
+              textAlign: TextAlign.center,
+            )),
+            Tab(child: Text(
+              'measure_inclination'.tr, // 'Inclination'
+              textAlign: TextAlign.center,
+            )),
+            Tab(child: Text(
+              'measure_direction'.tr, // 'Direction'
+              textAlign: TextAlign.center,
+            )),
+            Tab(child: Text(
+              'measure_final_save'.tr, // 'Final save'
+              textAlign: TextAlign.center,
+            )),
           ],
         ),
       ),
@@ -288,16 +298,24 @@ class SlopeAngleTab extends StatefulWidget {
 
 class _SlopeAngleTabState extends State<SlopeAngleTab> {
 
+  // sensors_plus for the dip angle
   late StreamSubscription _accelSub;
   late StreamSubscription _userAccelSub;
+  late  StreamSubscription _magSub;
 
   // Latest sensor values
-  double ax = 0, ay = 0, az = 0;
-  double uax = 0, uay = 0, uaz = 0;
+  List<double> _accel = [0, 0, 0];
+  List<double> _uaccel = [0, 0, 0];
+  List<double> _mag = [0, 0, 0];
+
   // Gravity vector
-  double gx = 0, gy = 0, gz = 0;
+  List<double> _g = [0, 0, 0];
+  // Normalized gravity
+  List<double> _ng = [0, 0, 0];
   // Output roll (radians)
-  double rollSP = 0;
+  double roll = 0;
+  // Output bearing (radians)
+  double bearing = 0.0;
 
   double? resValue; // The final value to save, irrespective of measurement mode.
 
@@ -308,32 +326,77 @@ class _SlopeAngleTabState extends State<SlopeAngleTab> {
 
     _accelSub = accelerometerEventStream(samplingPeriod: Duration(milliseconds: 8)).listen((event) {
       setState(() {
-        ax = event.x;
-        ay = event.y;
-        az = event.z;
+        _accel = [event.x, event.y, event.z];
       });
     });
 
     _userAccelSub = userAccelerometerEventStream(samplingPeriod: Duration(milliseconds: 8)).listen((event) {
       setState(() {
-        uax = event.x;
-        uay = event.y;
-        uaz = event.z;
+        _uaccel = [event.x, event.y, event.z];
 
         double smoothing = 0.9;
 
-        gx = smoothing * gx + (1 - smoothing) * (ax - uax);
-        gy = smoothing * gy + (1 - smoothing) * (ay - uay);
-        gz = smoothing * az + (1 - smoothing) * (az - uaz);
+        _g[0] = smoothing * _g[0] + (1 - smoothing) * (_accel[0] - _uaccel[0]);
+        _g[1] = smoothing * _g[1] + (1 - smoothing) * (_accel[1] - _uaccel[1]);
+        _g[2] = smoothing * _g[2] + (1 - smoothing) * (_accel[2] - _uaccel[2]);
 
         // Normalize (optional but recommended)
-        final norm = sqrt(gx * gx + gy * gy + gz * gz);
-
-        final nx = gx / norm;
-        final ny = gy / norm;
+        _ng = _normalize(_g);
 
         // Compute roll (portrait-friendly)
-        rollSP = atan2(-nx, ny);
+        roll = atan2(-_ng[0], _ng[1]);
+      });
+    });
+
+    _magSub = magnetometerEventStream(samplingPeriod: Duration(milliseconds: 8)).listen((event) {
+      _mag = [event.x, event.y, event.z];
+
+      final r = [0.0, 1.0, 0.0]; // Ridge of phone's direction
+
+      // Remove the component of mag that's parallel to gravity
+      // to get the horizontal component of the magnetic field
+      double magDotDown = _dot(_mag, _ng);
+      List<double> magHorizontal = [
+        _mag[0] - magDotDown * _ng[0],
+        _mag[1] - magDotDown * _ng[1],
+        _mag[2] - magDotDown * _ng[2],
+      ];
+
+      // This horizontal component points north
+      List<double> north = _normalize(magHorizontal);
+
+      // East is perpendicular to both north and down
+      List<double> east = _cross(north, _ng);
+      east = _normalize(east);
+
+      // Re-orthogonalize north to ensure perfect orthogonal frame
+      north = _cross(_ng, east);
+
+      // Build rotation matrix from phone to world
+      // Rows are the world frame basis vectors expressed in phone coordinates
+      // We want to go from phone coords to world coords
+      List<List<double>> phoneToWorld = [
+        [east[0], east[1], east[2]],      // world X (east) in phone frame
+        [north[0], north[1], north[2]],   // world Y (north) in phone frame
+        [_ng[0], _ng[1], _ng[2]],      // world Z (down) in phone frame
+      ];
+
+      // Transform to world coordinates
+      List<double> ridgeWorld = _matrixMultiply(phoneToWorld, r);
+
+      // Project onto horizontal plane (zero out z-component)
+      List<double> horizontal = [ridgeWorld[0], ridgeWorld[1], 0];
+      horizontal = _normalize(horizontal);
+
+      // atan2(East, North) gives bearing
+      final bearingRad = atan2(horizontal[0], horizontal[1]);
+
+      // Convert to degrees and normalize to 0-360
+      var bearingDeg = bearingRad * 180 / pi;
+      if (bearingDeg < 0) bearingDeg += 360;
+
+      setState(() {
+        bearing = bearingDeg;
       });
     });
 
@@ -344,10 +407,39 @@ class _SlopeAngleTabState extends State<SlopeAngleTab> {
 
   }
 
+
+  double _dot(List<double> a, List<double> b) =>
+      a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+
+  List<double> _cross(List<double> a, List<double> b) => [
+    a[1]*b[2] - a[2]*b[1],
+    a[2]*b[0] - a[0]*b[2],
+    a[0]*b[1] - a[1]*b[0],
+  ];
+
+  double _norm(List<double> v) =>
+      sqrt(_dot(v, v));
+
+  List<double> _normalize(List<double> v) {
+    final n = _norm(v);
+    if (n == 0) return [0, 0, 0];
+    return [v[0] / n, v[1] / n, v[2] / n];
+  }
+
+  List<double> _matrixMultiply(List<List<double>> matrix, List<double> vector) {
+    return [
+      matrix[0][0] * vector[0] + matrix[0][1] * vector[1] + matrix[0][2] * vector[2],
+      matrix[1][0] * vector[0] + matrix[1][1] * vector[1] + matrix[1][2] * vector[2],
+      matrix[2][0] * vector[0] + matrix[2][1] * vector[1] + matrix[2][2] * vector[2],
+    ];
+  }
+
+
   @override
   void dispose() {
     _accelSub.cancel();
     _userAccelSub.cancel();
+    _magSub.cancel();
     super.dispose();
   }
 
@@ -386,14 +478,15 @@ class _SlopeAngleTabState extends State<SlopeAngleTab> {
                   child: CustomPaint(
                     painter: ClinometerPainter(
                       // (roll > 0) ? (pi/2) - pitch : (pi/2) + pitch,
-                      rollSP,
+                      roll,
+                      settings.clinometerStyle,
                       isDark: isDark,
                     ),
                   ),
                 ),
                 SizedBox(height: 30),
                 Text(
-                  '${_radiansToDegrees((pi/2 - rollSP.abs()).abs()).toStringAsFixed(0)}°',
+                  '${_radiansToDegrees((pi/2 - roll.abs()).abs()).toStringAsFixed(0)}°',
                   style: TextStyle(
                       fontSize: 48, fontWeight: FontWeight.bold),
                 ),
@@ -401,7 +494,7 @@ class _SlopeAngleTabState extends State<SlopeAngleTab> {
                 ValueSaveButton(
                   value: (resValue == null) ? '--' : '${_radiansToDegrees(resValue!).toStringAsFixed(0)}°',
                   onSave: () {
-                    _saveMeasure(context, (pi/2 - rollSP.abs()).abs());
+                    _saveMeasure(context, (pi/2 - roll.abs()).abs());
                     widget.onNavigate();
                   },
                 ),
@@ -417,6 +510,10 @@ class _SlopeAngleTabState extends State<SlopeAngleTab> {
   void _saveMeasure(BuildContext context, double value) {
     final provider = Provider.of<MeasurementProvider>(context, listen: false);
     provider.updateInclination(value);
+    provider.dipDirectionBearing =
+      (pi/2 - roll.abs() >= 0)
+          ? (bearing + 180) % 360
+          : bearing;
 
     resValue = value;
   }
@@ -467,8 +564,10 @@ class _DipDirectionTabState extends State<DipDirectionTab> {
       (measurementProvider.currentMeasurement.bearing != null)
           ? _radiansToDegrees(measurementProvider.currentMeasurement.bearing!)
           : null,
+      (measurementProvider.dipDirectionBearing != null)
+          ? measurementProvider.dipDirectionBearing!
+          : null,
       false,
-      context.read<SettingsProvider>().isLeftHanded,
     );
 
     if (_selectedDirection == DipDirection.blank) {_selectedDirection = suggestedDir;}
@@ -482,7 +581,6 @@ class _DipDirectionTabState extends State<DipDirectionTab> {
     final measurementProvider = Provider.of<MeasurementProvider>(context);
 
     final isDark = settings.isDarkMode;
-    final isLeftHanded = settings.isLeftHanded;
 
     final accent = Colors.blue.shade400; // TODO I don't like hardcoding the color here
 
@@ -543,6 +641,7 @@ class _DipDirectionTabState extends State<DipDirectionTab> {
                                               measurementProvider
                                                 .currentMeasurement.bearing!)
                                             : null,
+                                        dipBearing: measurementProvider.dipDirectionBearing,
                                         selectedDirection: _selectedDirection,
                                         isDark: isDark,
                                       ),
@@ -592,8 +691,8 @@ class _DipDirectionTabState extends State<DipDirectionTab> {
                     const SizedBox(height: 18),
 
                     // ── Direction Selection ── //
-                    if (measurementProvider.currentMeasurement.bearing !=
-                        null) ...[
+                    if (measurementProvider.currentMeasurement.bearing != null
+                        && measurementProvider.dipDirectionBearing != null) ...[
                       DipDirectionSelector(
                         currentSelection: _selectedDirection,
                         accent: accent,
@@ -604,10 +703,14 @@ class _DipDirectionTabState extends State<DipDirectionTab> {
                         },
                         onForceE_W: (isForcingE_W) {
                           setState(() =>
-                          _selectedDirection = suggestedDirection(
-                              _radiansToDegrees(
-                                  measurementProvider.currentMeasurement
-                                      .bearing!), isForcingE_W, isLeftHanded));
+                            _selectedDirection = suggestedDirection(
+                                _radiansToDegrees(
+                                    measurementProvider.currentMeasurement
+                                        .bearing!),
+                                measurementProvider.dipDirectionBearing,
+                                isForcingE_W
+                            )
+                          );
                         },
                       ),
                     ] else

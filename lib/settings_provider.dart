@@ -5,7 +5,7 @@ import 'translation_util/translation_service.dart';
 
 enum LevelIndicatorStyle { BUBBLE, CROSSHAIR }
 enum BearingType { MAGNETIC, GEOGRAPHIC }
-enum ClinometerStyle { RIDGE, FLAT }
+enum ClinometerStyle { ARROW, MARBLE }
 // Decimal Degrees, Compact Decimal Degrees, Decimal Minutes, Degrees Minutes Seconds,
 enum CoordinatesDisplayFormat { DD, SDD, DMM, DMS }
 
@@ -17,8 +17,7 @@ class SettingsProvider extends ChangeNotifier {
   String _language = "en";
   LevelIndicatorStyle _levelIndicatorStyle = LevelIndicatorStyle.BUBBLE;
   BearingType _bearingType = BearingType.MAGNETIC;
-  ClinometerStyle _clinometerStyle = ClinometerStyle.RIDGE;
-  bool _isLeftHanded = false;
+  ClinometerStyle _clinometerStyle = ClinometerStyle.ARROW;
   CoordinatesDisplayFormat _coordDisplayFormat = CoordinatesDisplayFormat.DMM;
 
   // Getters
@@ -27,7 +26,6 @@ class SettingsProvider extends ChangeNotifier {
   LevelIndicatorStyle get levelIndicatorStyle => _levelIndicatorStyle;
   BearingType get bearingType => _bearingType;
   ClinometerStyle get clinometerStyle => _clinometerStyle;
-  bool get isLeftHanded => _isLeftHanded;
   CoordinatesDisplayFormat get coordDisplayFormat => _coordDisplayFormat;
 
 
@@ -60,11 +58,8 @@ class SettingsProvider extends ChangeNotifier {
     stored = _prefs?.getString('clinometerStyle');
     _clinometerStyle = ClinometerStyle.values.firstWhere(
           (e) => e.name == stored,
-      orElse: () => ClinometerStyle.RIDGE,
+      orElse: () => ClinometerStyle.ARROW,
     );
-
-    // leftHanded
-    _isLeftHanded = _prefs?.getBool('leftHanded') ?? false;
 
     // geo coordinates format
     stored = _prefs?.getString('coordinatesDisplayFormat');
@@ -107,12 +102,6 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setClinometerStyle(ClinometerStyle value) async {
     _clinometerStyle = value;
     await _prefs?.setString('clinometerStyle', value.name);
-    notifyListeners();
-  }
-
-  Future<void> setLeftHanded(bool value) async {
-    _isLeftHanded = value;
-    await _prefs?.setBool('leftHanded', value);
     notifyListeners();
   }
 

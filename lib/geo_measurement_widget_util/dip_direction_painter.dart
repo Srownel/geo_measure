@@ -17,15 +17,15 @@ import 'package:multi_sensor_app/translation_util/translation_service.dart';
 /// [CompassPainter]: the phone does not need to be held flat at this step.
 class SlopeBearingPainter extends CustomPainter {
   final double? bearing; // in degrees
+  final double? dipBearing; // in degrees
   final DipDirection selectedDirection;
   final bool isDark;
-  final bool isLeftHanded;
 
   SlopeBearingPainter({
     required this.bearing,
+    required this.dipBearing,
     required this.selectedDirection,
     this.isDark = false,
-    this.isLeftHanded = false,
   });
 
   // ── Colour helpers ── //
@@ -243,11 +243,35 @@ class SlopeBearingPainter extends CustomPainter {
   /// By default and without user input, perpendicular is assumed to mean 90° clockwise.
   void _drawNormalArrow(Canvas canvas, Offset center, double radius) {
     if (bearing == null) return;
-    bool forceEastWest = selectedDirection == DipDirection.east || selectedDirection == DipDirection.west;
-    final arrowAngle = // canvas radians, perpendicular to the bearing
-      ( selectedDirection == getOppositeDirection(suggestedDirection(bearing, forceEastWest, isLeftHanded)) ) // Check if the user swapped the normal direction manually.
-          ? (isLeftHanded) ? _bearingToCanvas(bearing!) + pi/2 : _bearingToCanvas(bearing!) - pi/2
-          : (isLeftHanded) ? _bearingToCanvas(bearing!) - pi/2 : _bearingToCanvas(bearing!) + pi/2;
+
+    double limitedBearing = bearing!;
+    if (bearing! > 180) {
+      limitedBearing =  bearing! - 180;
+    }
+    final bearingRadians = (limitedBearing - 90) * pi / 180;
+
+    double arrowAngle = 0.0;
+    switch (selectedDirection) {
+      case DipDirection.east:
+      // Perpendicular to bearing, to the right
+        arrowAngle = bearingRadians + ((limitedBearing < 90) ? pi / 2 : -pi / 2);
+        break;
+      case DipDirection.west:
+      // Perpendicular to bearing, to the left
+        arrowAngle = bearingRadians + ((limitedBearing > 90) ? pi / 2 : -pi / 2);
+        break;
+      case DipDirection.north:
+      // Straight up
+        arrowAngle = -pi / 2;
+        break;
+      case DipDirection.south:
+      // Straight down
+        arrowAngle = pi / 2;
+        break;
+      case DipDirection.blank:
+      // Shouldn't ever happen since we return early for null or blank value
+        return;
+    }
 
     final arrowLength = (radius - 35) * 0.62;
 
@@ -267,15 +291,18 @@ class SlopeBearingPainter extends CustomPainter {
     const headWidth = 8.0;
     final perpAngle = arrowAngle + pi / 2;
 
+    final headTipX = tipX + 5 * cos(arrowAngle);
+    final headTipY = tipY + 5 * sin(arrowAngle);
+
     final head = Path()
-      ..moveTo(tipX, tipY)
+      ..moveTo(headTipX, headTipY)
       ..lineTo(
-        tipX - headLen * cos(arrowAngle) + headWidth * cos(perpAngle),
-        tipY - headLen * sin(arrowAngle) + headWidth * sin(perpAngle),
+        headTipX - headLen * cos(arrowAngle) + headWidth * cos(perpAngle),
+        headTipY - headLen * sin(arrowAngle) + headWidth * sin(perpAngle),
       )
       ..lineTo(
-        tipX - headLen * cos(arrowAngle) - headWidth * cos(perpAngle),
-        tipY - headLen * sin(arrowAngle) - headWidth * sin(perpAngle),
+        headTipX - headLen * cos(arrowAngle) - headWidth * cos(perpAngle),
+        headTipY - headLen * sin(arrowAngle) - headWidth * sin(perpAngle),
       )
       ..close();
 
@@ -433,16 +460,27 @@ class _DirectionSwapButton extends StatelessWidget {
 
 /// Computes the suggested dip direction from a bearing (0–360°).
 /// Default suggested direction is counterclockwise from bearing, clockwise if left handed.
-DipDirection suggestedDirection(double? bearing, bool forceEastWest, bool isLeftHanded) {
-  if (bearing == null) return DipDirection.blank;
+/// forceEastWest is a legacy feature, no longer used
+DipDirection suggestedDirection(double? bearing, double? dipBearing, bool forceEastWest) {
+  if (bearing == null || dipBearing == null) return DipDirection.blank;
 
-  final b = (isLeftHanded) ? (bearing - 90) % 360 : (bearing + 90) % 360;
+  // East-West bearing, result is north or south.
+  if ((bearing > 89.5 && bearing < 90.5)
+    || (bearing > 269.5 && bearing < 270.5)) {
 
-  if (!forceEastWest) {
-    if (b < 0.5 || b > 359.5) return DipDirection.north;
-    if (b > 179.5 && b < 180.5) return DipDirection.south;
+    if (dipBearing > 90 && dipBearing < 270) {
+      return DipDirection.south;
+    } else {
+      return DipDirection.north;
+    }
+  } else {
+
+    if (dipBearing >= 0 && dipBearing <= 180) {
+      return DipDirection.east;
+    } else {
+      return DipDirection.west;
+    }
   }
-  return (b > 0 && b <= 180) ? DipDirection.east : DipDirection.west;
 }
 
 DipDirection getOppositeDirection(DipDirection dir) {
