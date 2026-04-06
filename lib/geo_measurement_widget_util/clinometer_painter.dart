@@ -337,10 +337,11 @@ class ClinometerPainter extends CustomPainter {
       barPaint,
     );
 
+    // "Arrow" style display
     if (clinoStyle == ClinometerStyle.ARROW) {
       // Draw the arrow
       final arrowAngle = pi / 2;
-      final arrowLength = (radius - 35);
+      final arrowLength = (radius - 25);
 
       final tipX = center.dx + arrowLength * cos(arrowAngle);
       final tipY = center.dy + arrowLength * sin(arrowAngle);
@@ -353,28 +354,23 @@ class ClinometerPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round;
       canvas.drawLine(center, tip, shaftPaint);
 
-      // Arrowhead
-      const headLen = 14.0;
-      const headWidth = 8.0;
-      final perpAngle = arrowAngle + pi / 2;
+      // Arrow "head" (ring)
+      const headRadius = 12.0;
+      final headCenterX = tipX + headRadius * cos(arrowAngle);
+      final headCenterY = tipY + headRadius * sin(arrowAngle);
+      final headCenter = Offset(headCenterX, headCenterY);
 
-      final head = Path()
-        ..moveTo(tipX, tipY + 5)
-        ..lineTo(
-          tipX - headLen * cos(arrowAngle) + headWidth * cos(perpAngle),
-          tipY - headLen * sin(arrowAngle) + headWidth * sin(perpAngle),
-        )..lineTo(tipX, tipY - 8)..lineTo(
-          tipX - headLen * cos(arrowAngle) - headWidth * cos(perpAngle),
-          tipY - headLen * sin(arrowAngle) - headWidth * sin(perpAngle),
-        )
-        ..close();
-
-      canvas.drawPath(
-        head,
+      // Draw ring head
+      canvas.drawCircle(
+        headCenter,
+        headRadius,
         Paint()
           ..color = Colors.red
-          ..style = PaintingStyle.fill,
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3.5,
       );
+
+    // "Marble" style display
     } else {
       // Draw the marble
       final marbleCenter = Offset(center.dx, center.dy + (radius - 7));

@@ -51,7 +51,7 @@ class TranslationService extends ChangeNotifier {
       'settings_crosshair' : 'Crosshair',
       'settings_inclino_style' : 'Clinometer Style',
       'settings_inclino_style_2' : 'Choose visual style for angle indicator on clinometer',
-      'settings_arrow' : 'Arrow',
+      'settings_arrow' : 'Pendulum',
       'settings_marble' : 'Marble',
       'settings_coord_style' : 'Coordinates Format',
       'settings_coord_style_2' : 'How GPS coordinates are displayed',
@@ -132,6 +132,9 @@ class TranslationService extends ChangeNotifier {
       'painter_EAST_WEST' : 'EAST/WEST',
       'painter_NORTH_SOUTH' : 'NORTH/SOUTH',
 
+      // session_class.dart
+      'session_session' : 'Session',
+
       // session_widget.dart
       'session_details' : 'Session Details',
       'session_not_found' : 'Session not found.',
@@ -180,7 +183,7 @@ class TranslationService extends ChangeNotifier {
       'home_view_session_2' : 'Consulter vos précédentes sessions et mesures',
       'home_continue_session' : 'Dernière Session',
       'home_continue_session_2' : 'Ajouter des mesures à la dernière session',
-      'home_last_session' : 'Dernière sessions: ',
+      'home_last_session' : 'Dernière session: ',
       'home_last_session_date' : 'Date: ',
       'home_last_session_measurements' : 'Mesures: ',
 
@@ -203,7 +206,7 @@ class TranslationService extends ChangeNotifier {
       'settings_crosshair' : 'Croix',
       'settings_inclino_style' : 'Style de l\'inclinomètre',
       'settings_inclino_style_2' : 'Le style de l\'indicateur d\'angle sur l\'inclinomètre',
-      'settings_arrow' : 'Flèche',
+      'settings_arrow' : 'Masselotte',
       'settings_marble' : 'Bille',
       'settings_coord_style' : 'Coordonnées GPS',
       'settings_coord_style_2' : 'Le format d\'affichage des coordonnées GPS',

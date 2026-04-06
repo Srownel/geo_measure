@@ -68,11 +68,13 @@ class CompassPainter extends CustomPainter {
     // Draw north indicator (fixed, doesn't rotate)
     _drawNorthIndicator(canvas, center, radius);
 
-    // Draw center dot
-    final centerDotPaint = Paint()
-      ..color = Colors.red
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, 6, centerDotPaint);
+    if (levelIndicatorStyle == LevelIndicatorStyle.CROSSHAIR) {
+      // Draw center dot
+      final centerDotPaint = Paint()
+        ..color = Colors.red
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(center, 6, centerDotPaint);
+    }
 
     // Draw white border around center dot
     final centerDotBorderPaint = Paint()
@@ -83,7 +85,7 @@ class CompassPainter extends CustomPainter {
 
     // Draw level indicator (bubble level, or crosshair style)
     if (levelIndicatorStyle == LevelIndicatorStyle.BUBBLE) {
-      _drawBubbleLevelIndicator(canvas, size, center, radius, Colors.lime);
+      _drawBubbleLevelIndicator(canvas, center, radius, Colors.lime);
     } else if (levelIndicatorStyle == LevelIndicatorStyle.CROSSHAIR) {
       _drawCrosshairIndicator(canvas, center, radius, fgColor);
     }
@@ -181,101 +183,113 @@ class CompassPainter extends CustomPainter {
 
   //* BUBBLE LEVEL-STYLE VISUALIZATION FOR PITCH AND ROLL *//
 
-  void _drawBubbleLevelIndicator(Canvas canvas, Size size, Offset center, double radius, Color fgColor) {
-    final tubeLength = 70.0;
-    final tubeWidth = 20.0;
-    final bubbleRadius = 7.0;
-    final placementRadius = 55;
+  void _drawBubbleLevelIndicator(Canvas canvas, Offset center, double radius, Color fgColor) {
+    final containerRadius = 35.0;
+    final containerThickness = 3.0;
 
-    final maxOffsetRadians = 0.523; // 30 degrees, in radians
+    final bubbleRadius = 10.0;
+    final bubbleThickness = 1.0;
 
-    // Horizontal level (for roll) - positioned at bottom
-    final hLevelRect = Rect.fromCenter(
-      center: Offset(center.dx, center.dy + placementRadius),
-      width: tubeLength,
-      height: tubeWidth,
+    final maxOffsetRadians = 0.785; // 45 degrees, in radians
+
+    // DRAW CONTAINER
+
+    // Draw container background
+    final rect = Rect.fromCircle(
+      center: Offset(center.dx - containerRadius/2, center.dy - containerRadius),
+      radius: containerRadius * 2,
     );
 
-    // Draw horizontal tube
-    final tubePaint = Paint()
-      ..color = fgColor.withOpacity(0.2)
-      ..style = PaintingStyle.fill;
-    final tubeBorderPaint = Paint()
-      ..color = Colors.black.withOpacity(0.5)
+    final containerBackgroundPaint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          const Color(0xFFBFFF66).withOpacity(0.7), // lighter version
+          const Color(0xFF7CFC00).withOpacity(0.6), // middle
+          const Color(0xFF4CAF00).withOpacity(0.8), // darker edge
+        ],
+        stops: const [0.0, 0.4, 1.0],
+      ).createShader(rect);
+
+    canvas.drawCircle(
+      center,
+      containerRadius,
+      containerBackgroundPaint,
+    );
+
+    // Draw container outer ring
+    final containerPaint = Paint()
+      ..color = Colors.black.withOpacity(0.6)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
+      ..strokeWidth = containerThickness;
 
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(hLevelRect, Radius.circular(15)),
-      tubePaint,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(hLevelRect, Radius.circular(15)),
-      tubeBorderPaint,
+    canvas.drawCircle(
+      center,
+      containerRadius,
+      containerPaint,
     );
 
-    // Draw center mark for horizontal level
+    // Draw container inner indicators
+
+    final innerIndicatorPaint = Paint()
+    ..color = Colors.black.withOpacity(0.8)
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = bubbleThickness;
+
     canvas.drawLine(
-      Offset(center.dx, center.dy + placementRadius - 12),
-      Offset(center.dx, center.dy + placementRadius + 12),
-      Paint()
-        ..color = Colors.black.withOpacity(0.7)
-        ..strokeWidth = 2,
+      Offset(center.dx - containerRadius, center.dy),
+      Offset(center.dx + containerRadius, center.dy),
+      innerIndicatorPaint,
+    );
+    canvas.drawLine(
+      Offset(center.dx, center.dy - containerRadius),
+      Offset(center.dx, center.dy + containerRadius),
+      innerIndicatorPaint,
+    );
+    canvas.drawCircle(
+      center,
+      bubbleRadius + 1,
+      innerIndicatorPaint,
     );
 
-    // Calculate bubble position for roll (clamp to tube bounds)
-    final maxRollOffset = (tubeLength / 2) - bubbleRadius - 5;
-    final rollOffset = (roll / maxOffsetRadians) * maxRollOffset;
-    final clampedRollOffset = rollOffset.clamp(-maxRollOffset, maxRollOffset);
+    // DRAW BUBBLE
 
-    // Draw horizontal bubble
-    final hBubblePaint = Paint()
-      ..color = Colors.white
+    // Calculate moving bubble position based on pitch and roll
+    final maxOffset = containerRadius - bubbleRadius;
+
+    final offset = Offset(
+      (roll / maxOffsetRadians) * maxOffset,
+      (pitch / maxOffsetRadians) * maxOffset,
+    );
+
+    final distance = offset.distance;
+
+    final clampedOffset = distance > maxOffset
+        ? offset / distance * maxOffset
+        : offset;
+
+    final movingCenter = center + clampedOffset;
+
+    // Draw moving bubble
+    final bubbleinsidePaint = Paint()
+      ..color = Colors.white.withOpacity(0.3)
       ..style = PaintingStyle.fill;
-    final hBubbleBorderPaint = Paint()
-      ..color = Colors.green.withOpacity(0.6)
+
+    canvas.drawCircle(
+      movingCenter,
+      bubbleRadius,
+      bubbleinsidePaint,
+    );
+
+    final bubbleOutlinePaint = Paint()
+      ..color = Colors.black.withOpacity(0.6)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
+      ..strokeWidth = bubbleThickness;
 
-    final hBubbleCenter = Offset(center.dx + clampedRollOffset, center.dy + placementRadius);
-    canvas.drawCircle(hBubbleCenter, bubbleRadius, hBubblePaint);
-    canvas.drawCircle(hBubbleCenter, bubbleRadius, hBubbleBorderPaint);
-
-    // Vertical level (for pitch) - positioned on right side
-    final vLevelRect = Rect.fromCenter(
-      center: Offset(center.dx - placementRadius, center.dy),
-      width: tubeWidth,
-      height: tubeLength,
+    canvas.drawCircle(
+      movingCenter,
+      bubbleRadius,
+      bubbleOutlinePaint,
     );
-
-    // Draw vertical tube
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(vLevelRect, Radius.circular(15)),
-      tubePaint,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(vLevelRect, Radius.circular(15)),
-      tubeBorderPaint,
-    );
-
-    // Draw center mark for vertical level
-    canvas.drawLine(
-      Offset(center.dx - placementRadius - 12, center.dy),
-      Offset(center.dx - placementRadius + 12, center.dy),
-      Paint()
-        ..color = Colors.black.withOpacity(0.7)
-        ..strokeWidth = 2,
-    );
-
-    // Calculate bubble position for pitch (clamp to tube bounds)
-    final maxPitchOffset = (tubeLength / 2) - bubbleRadius - 5;
-    final pitchOffset = (pitch / maxOffsetRadians) * maxPitchOffset;
-    final clampedPitchOffset = pitchOffset.clamp(-maxPitchOffset, maxPitchOffset);
-
-    // Draw vertical bubble
-    final vBubbleCenter = Offset(center.dx - placementRadius, center.dy + clampedPitchOffset);
-    canvas.drawCircle(vBubbleCenter, bubbleRadius, hBubblePaint);
-    canvas.drawCircle(vBubbleCenter, bubbleRadius, hBubbleBorderPaint);
   }
 
   //* CROSSHAIR-STYLE VISUALIZATION FOR PITCH AND ROLL *//
@@ -318,8 +332,8 @@ class CompassPainter extends CustomPainter {
 
     // Calculate moving crosshair position based on pitch and roll
     final maxOffset = radius * 0.4; // Maximum displacement
-    final rollOffset = (roll / maxOffsetRadians) * maxOffset;
-    final pitchOffset = (pitch / maxOffsetRadians) * maxOffset;
+    final rollOffset = min((roll / maxOffsetRadians), 1) * maxOffset;
+    final pitchOffset = min((pitch / maxOffsetRadians), 1) * maxOffset;
 
     final movingCenter = Offset(
       center.dx + rollOffset,
